@@ -1,5 +1,5 @@
-#ifndef _ourshell_
-#define _ourshell_
+#ifndef _MAIN_H_
+#define _MAIN_H_
 
 #include<string.h>
 #include<stdio.h>
