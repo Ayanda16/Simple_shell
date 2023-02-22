@@ -114,7 +114,7 @@ char **token_interface(char *command, const char *delim, int token_count)
 	aop = tokenize(token_count, command, delim);
 	if (aop == NULL)
 	{
-		free(aop);
+		free(command);
 		return (NULL);
 	}
 
