@@ -32,37 +32,36 @@ typedef struct builtin_d
 extern char **environ;
 
 /* functions */
-char **token_interface(char *, const char *, int);
-int count_token(char *, const char *);
-char **tokenize(int, char *, const char *);
-void create_child(char **, char *, int, char **);
-void parse_line(char *, size_t, int, char **);
-char *path_finder(char *);
-int str_len(char *);
-int find_path(char *);
-char **tokenize_path(int, char *);
-char *search_directories(char **, char *);
-char *build_path(char *, char *);
-void double_free(char **);
-void single_free(int, ...);
-int _strcmp(char *, char *);
-char *_strdup(char *);
-void print_str(char *, int);
-int print_number(int);
-int _write_char(char);
+char **token_interface(char *command, const char *delim, int token_count);
+int count_token(char *command, const char *delim);
+char **tokenize(int token_count, char *command, const char *delim);
+void create_child(char **aop, char *command, int count, char **argv);
+void parse_line(char *command, size_t size, int command_counter, char **argv);
+char *path_finder(char *string;
+int find_path(char *str);
+char **tokenize_path(int index, char *str);
+char *search_directories(char **pathtok, char *string);
+char *build_path(char *dir, char *string);
+void double_free(char **var);
+void single_free(int n, ...);
+int _strcmp(char *s1, char *s2);
+char *_strdup(char *src);
+void print_str(char *str, int new_line);
+int print_number(int n);
+int _write_char(char c);
 int _strlen(char *str);
 
 /* builtins */
-int built_in(char **, char *);
-void (*get_builtins(char *))(char *);
-void ourshell_exit(char *);
-void ourshell_env(char *);
-void ourshell_cd(char *);
+int built_in(char **string, char *command);
+void (*get_builtins(char *str))(char *str);
+void ourshell_exit(char *command);
+void ourshell_env(char *command);
+void ourshell_cd(char *command);
 
 /* error handling */
 
-void error_printing(char *, int, char *);
-void exec_error(char *, int, char *);
+void error_printing(char *argv, int count, char *string);
+void exec_error(char *argv, int count, char *tmp_string);
 
 #endif
 
