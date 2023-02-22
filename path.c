@@ -2,11 +2,11 @@
 
 /**
  * path_finder - Function to find the the full path in the program environment.
- * @line: represents a command passed to the stdin
+ * @string: represents a command passed to the stdin
  * Return: full path
  */
 
-char *path_finder(char *line)
+char *path_finder(char *string)
 {
 	char *str = "PATH";
 	char *new;
@@ -19,14 +19,14 @@ char *path_finder(char *line)
 	if (pathtok == NULL)
 		return (NULL);
 
-	dir = search_directories(pathtok, line);
+	dir = search_directories(pathtok, string);
 	if (dir == NULL)
 	{
 		double_free(pathtok);
 		return (NULL);
 	}
 
-	new = build_path(dir, line);
+	new = build_path(dir, string);
 	if (new == NULL)
 	{
 		double_free(pathtok);
@@ -82,11 +82,11 @@ int find_path(char *str)
  * specific file. aka commmand.
  * @pathtok: A pointer to an array of strings representing the different
  * paths contained in the PATH environmental varible.
- * @line: Represents a command. For example ls, echo, pwd, /bin/ls etc.
+ * @string: Represents a command. For example ls, echo, pwd, /bin/ls etc.
  * Return: Upon success a string with the upper most directory containing
  * the command file. Otherwise returns NULL.
  */
-char *search_directories(char **pathtok, char *line)
+char *search_directories(char **pathtok, char *string)
 {
 	int i, s;
 	char *cwd;
@@ -99,8 +99,8 @@ char *search_directories(char **pathtok, char *line)
 	cwd = getcwd(buf, size);
 	if (cwd == NULL)
 		return (NULL);
-	if (line[0] == '/')
-		line = line + 1;
+	if (string[0] == '/')
+		string = string + 1;
 	for (i = 0; pathtok[i] != NULL; i++)
 	{
 		s = chdir(pathtok[i]);
@@ -109,7 +109,7 @@ char *search_directories(char **pathtok, char *line)
 			perror("ERROR!");
 			return (NULL);
 		}
-		s = stat(line, &stat_buf);
+		s = stat(string, &stat_buf);
 		if (s == 0)
 		{
 			chdir(cwd);
@@ -126,23 +126,23 @@ char *search_directories(char **pathtok, char *line)
  * build_path - Combines two strings one representing the path directory and
  * one representing the command file.
  * @dir: Represents a directory in the path.
- * @line: Represents a file in a directory of the path.
+ * @string: Represents a file in a directory of the path.
  * Return: Upon success a string representing the full path of a command.
  * Otherwise NULL.
  */
-char *build_path(char *dir, char *line)
+char *build_path(char *dir, char *string)
 {
 	int i, j;
 	int dir_len;
-	int line_len;
+	int string_len;
 	int len;
 	char *built;
 
-	if (dir == NULL || line == NULL)
+	if (dir == NULL || string == NULL)
 		return (NULL);
 	dir_len = strlen(dir) + 1;
-	line_len = strlen(line) + 1;
-	len = dir_len + line_len;
+	string_len = strlen(string) + 1;
+	len = dir_len + string_len;
 
 	built = malloc(sizeof(char) * len);
 	if (built == NULL)
@@ -154,8 +154,8 @@ char *build_path(char *dir, char *line)
 			built[i] = dir[j];
 		built[i] = '/';
 		i++;
-		for (j = 0; line[j] != '\0'; j++, i++)
-			built[i] = line[j];
+		for (j = 0; string[j] != '\0'; j++, i++)
+			built[i] = string[j];
 	}
 	built[--i] = '\0';
 	return (built);

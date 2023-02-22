@@ -37,7 +37,7 @@ int count_token(char *command, const char *delim);
 char **tokenize(int token_count, char *command, const char *delim);
 void create_child(char **aop, char *command, int count, char **argv);
 void parse_line(char *command, size_t size, int command_counter, char **argv);
-char *path_finder(char *string;
+char *path_finder(char *string);
 int find_path(char *str);
 char **tokenize_path(int index, char *str);
 char *search_directories(char **pathtok, char *string);
