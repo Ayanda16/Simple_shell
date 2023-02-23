@@ -1,162 +1,257 @@
 #include"main.h"
 
 /**
- * path_finder - Function to find the the full path in the program environment.
- * @string: represents a command passed to the stdin
- * Return: full path
+ * get_location - Locates a command in the PATH.
+ * @command: The command to locate.
+ *
+ * Return: If an error occurs or the command cannot be located - NULL.
+ *         Otherwise - the full pathname of the command.
  */
-
-char *path_finder(char *string)
+char *get_location(char *command)
 {
-	char *str = "PATH";
-	char *new;
-	char **pathtok;
-	int index;
-	char *dir;
+	char **path, *temp;
+	list_t *dirs, *head;
+	struct stat st;
 
-	index = find_path(str);
-	pathtok = tokenize_path(index, str);
-	if (pathtok == NULL)
+	path = _getenv("PATH");
+	if (!path || !(*path))
 		return (NULL);
 
-	dir = search_directories(pathtok, string);
-	if (dir == NULL)
+	dirs = get_path_dir(*path + 5);
+	head = dirs;
+
+	while (dirs)
 	{
-		double_free(pathtok);
-		return (NULL);
-	}
-
-	new = build_path(dir, string);
-	if (new == NULL)
-	{
-		double_free(pathtok);
-		return (NULL);
-	}
-
-	double_free(pathtok);
-
-	return (new);
-}
-
-/**
- * double_free - Free double pointer variables.
- * @var: The address of the variable that need to be freed.
- */
-void double_free(char **var)
-{
-	int index;
-
-	for (index = 0; var[index] != NULL; index++)
-		free(var[index]);
-	free(var);
-}
-
-/**
- * find_path - Finds the index of an environmental variable.
- * @str: Environmental variable that needs to be found.
- * Return: Upon success returns the index of the environmental variable.
- * otherwise returns -1.
- */
-int find_path(char *str)
-{
-	int i;
-	int len;
-	int j;
-
-	len = strlen(str);
-	for (i = 0; environ[i] != NULL; i++)
-	{
-		for (j = 0; j < len; j++)
-		{
-			if (environ[i][j] != str[j])
-				break;
-		}
-		if (j == len && environ[i][j] == '=')
-			return (i);
-	}
-	return (-1);
-}
-
-/**
- * search_directories - Looks through directories stored in path_tokens for a
- * specific file. aka commmand.
- * @pathtok: A pointer to an array of strings representing the different
- * paths contained in the PATH environmental varible.
- * @string: Represents a command. For example ls, echo, pwd, /bin/ls etc.
- * Return: Upon success a string with the upper most directory containing
- * the command file. Otherwise returns NULL.
- */
-char *search_directories(char **pathtok, char *string)
-{
-	int i, s;
-	char *cwd;
-	char *buf;
-	size_t size;
-	struct stat stat_buf;
-
-	buf = NULL;
-	size = 0;
-	cwd = getcwd(buf, size);
-	if (cwd == NULL)
-		return (NULL);
-	if (string[0] == '/')
-		string = string + 1;
-	for (i = 0; pathtok[i] != NULL; i++)
-	{
-		s = chdir(pathtok[i]);
-		if (s == -1)
-		{
-			perror("ERROR!");
+		temp = malloc(_strlen(dirs->dir) + _strlen(command) + 2);
+		if (!temp)
 			return (NULL);
-		}
-		s = stat(string, &stat_buf);
-		if (s == 0)
+
+		_strcpy(temp, dirs->dir);
+		_strcat(temp, "/");
+		_strcat(temp, command);
+
+		if (stat(temp, &st) == 0)
 		{
-			chdir(cwd);
-			free(cwd);
-			return (pathtok[i]);
+			free_list(head);
+			return (temp);
 		}
+
+		dirs = dirs->next;
+		free(temp);
 	}
-	chdir(cwd);
-	free(cwd);
+
+	free_list(head);
+
 	return (NULL);
 }
 
 /**
- * build_path - Combines two strings one representing the path directory and
- * one representing the command file.
- * @dir: Represents a directory in the path.
- * @string: Represents a file in a directory of the path.
- * Return: Upon success a string representing the full path of a command.
- * Otherwise NULL.
+ * fill_path_dir - Copies path but also replaces leading/sandwiched/trailing
+ *		   colons (:) with current working directory.
+ * @path: The colon-separated list of directories.
+ *
+ * Return: A copy of path with any leading/sandwiched/trailing colons replaced
+ *	   with the current working directory.
  */
-char *build_path(char *dir, char *string)
+char *fill_path_dir(char *path)
 {
-	int i, j;
-	int dir_len;
-	int string_len;
-	int len;
-	char *built;
+	int i, length = 0;
+	char *path_copy, *pwd;
 
-	if (dir == NULL || string == NULL)
-		return (NULL);
-	dir_len = strlen(dir) + 1;
-	string_len = strlen(string) + 1;
-	len = dir_len + string_len;
-
-	built = malloc(sizeof(char) * len);
-	if (built == NULL)
-		return (NULL);
-
-	for (i = 0; i < len; i++)
+	pwd = *(_getenv("PWD")) + 4;
+	for (i = 0; path[i]; i++)
 	{
-		for (j = 0; dir[j] != '\0'; j++, i++)
-			built[i] = dir[j];
-		built[i] = '/';
-		i++;
-		for (j = 0; string[j] != '\0'; j++, i++)
-			built[i] = string[j];
+		if (path[i] == ':')
+		{
+			if (path[i + 1] == ':' || i == 0 || path[i + 1] == '\0')
+				length += _strlen(pwd) + 1;
+			else
+				length++;
+		}
+		else
+			length++;
 	}
-	built[--i] = '\0';
-	return (built);
+	path_copy = malloc(sizeof(char) * (length + 1));
+	if (!path_copy)
+		return (NULL);
+	path_copy[0] = '\0';
+	for (i = 0; path[i]; i++)
+	{
+		if (path[i] == ':')
+		{
+			if (i == 0)
+			{
+				_strcat(path_copy, pwd);
+				_strcat(path_copy, ":");
+			}
+			else if (path[i + 1] == ':' || path[i + 1] == '\0')
+			{
+				_strcat(path_copy, ":");
+				_strcat(path_copy, pwd);
+			}
+			else
+				_strcat(path_copy, ":");
+		}
+		else
+		{
+			_strncat(path_copy, &path[i], 1);
+		}
+	}
+	return (path_copy);
+}
+
+/**
+ * get_path_dir - Tokenizes a colon-separated list of
+ *                directories into a list_s linked list.
+ * @path: The colon-separated list of directories.
+ *
+ * Return: A pointer to the initialized linked list.
+ */
+list_t *get_path_dir(char *path)
+{
+	int index;
+	char **dirs, *path_copy;
+	list_t *head = NULL;
+
+	path_copy = fill_path_dir(path);
+	if (!path_copy)
+		return (NULL);
+	dirs = _strtok(path_copy, ":");
+	free(path_copy);
+	if (!dirs)
+		return (NULL);
+
+	for (index = 0; dirs[index]; index++)
+	{
+		if (add_node_end(&head, dirs[index]) == NULL)
+		{
+			free_list(head);
+			free(dirs);
+			return (NULL);
+		}
+	}
+
+	free(dirs);
+
+	return (head);
+}
+
+/**
+ * cant_open - If the file doesn't exist or lacks proper permissions, print
+ * a cant open error.
+ * @file_path: Path to the supposed file.
+ *
+ * Return: 127.
+ */
+
+int cant_open(char *file_path)
+{
+	char *error, *hist_str;
+	int len;
+
+	hist_str = _itoa(hist);
+	if (!hist_str)
+		return (127);
+
+	len = _strlen(name) + _strlen(hist_str) + _strlen(file_path) + 16;
+	error = malloc(sizeof(char) * (len + 1));
+	if (!error)
+	{
+		free(hist_str);
+		return (127);
+	}
+
+	_strcpy(error, name);
+	_strcat(error, ": ");
+	_strcat(error, hist_str);
+	_strcat(error, ": Can't open ");
+	_strcat(error, file_path);
+	_strcat(error, "\n");
+
+	free(hist_str);
+	write(STDERR_FILENO, error, len);
+	free(error);
+	return (127);
+}
+
+/**
+ * proc_file_commands - Takes a file and attempts to run the commands stored
+ * within.
+ * @file_path: Path to the file.
+ * @exe_ret: Return value of the last executed command.
+ *
+ * Return: If file couldn't be opened - 127.
+ *	   If malloc fails - -1.
+ *	   Otherwise the return value of the last command ran.
+ */
+int proc_file_commands(char *file_path, int *exe_ret)
+{
+	ssize_t file, b_read, i;
+	unsigned int line_size = 0;
+	unsigned int old_size = 120;
+	char *line, **args, **string;
+	char buffer[120];
+	int ret;
+
+	hist = 0;
+	file = open(file_path, O_RDONLY);
+	if (file == -1)
+	{
+		*exe_ret = cant_open(file_path);
+		return (*exe_ret);
+	}
+	line = malloc(sizeof(char) * old_size);
+	if (!line)
+		return (-1);
+	do {
+		b_read = read(file, buffer, 119);
+		if (b_read == 0 && line_size == 0)
+			return (*exe_ret);
+		buffer[b_read] = '\0';
+		line_size += b_read;
+		line = _realloc(line, old_size, line_size);
+		_strcat(line, buffer);
+		old_size = line_size;
+	} while (b_read);
+	for (i = 0; line[i] == '\n'; i++)
+		line[i] = ' ';
+	for (; i < line_size; i++)
+	{
+		if (line[i] == '\n')
+		{
+			line[i] = ';';
+			for (i += 1; i < line_size && line[i] == '\n'; i++)
+				line[i] = ' ';
+		}
+	}
+	variable_replacement(&line, exe_ret);
+	handle_line(&line, line_size);
+	args = _strtok(line, " ");
+	free(line);
+	if (!args)
+		return (0);
+	if (check_args(args) != 0)
+	{
+		*exe_ret = 2;
+		free_args(args, args);
+		return (*exe_ret);
+	}
+	string = args;
+
+	for (i = 0; args[i]; i++)
+	{
+		if (_strncmp(args[i], ";", 1) == 0)
+		{
+			free(args[i]);
+			args[i] = NULL;
+			ret = call_args(args, string, exe_ret);
+			args = &args[++i];
+			i = 0;
+		}
+	}
+
+	ret = call_args(args, string, exe_ret);
+
+	free(string);
+	return (ret);
 }

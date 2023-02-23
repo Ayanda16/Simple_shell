@@ -1,102 +1,34 @@
 #include"main.h"
 
 /**
- * _strcat - Function to concatenate the value character by
- * character of src to dest.
- * Description: "/bin" "ls" = "/bin/ls" - "src/dest" <-- e. Expected output.
- * @dest: Variable on representetion of a program.
- * @src: Variable on representatio of the program path.
- * Return: Success (s_concat), string concatenated.
+ * _strlen - finds the length of a string.
+ * @s: A pointer to the characters string.
+ *
+ * Return: The length of the character string.
  */
 
-char *_strcat(char *dest, char *src)
+int _strlen(const char *s)
 {
-	char *s_concat = NULL;
-	int lendest = 0, lensrc = 0, i_s = 0, idest = 0;
+	int length = 0;
 
-	if (dest && src)
-	{
-		lendest = _strlen(dest);
-		lensrc = _strlen(src);
-		s_concat = malloc(sizeof(char) * (lendest + lensrc + 2));
-
-		if (s_concat)
-		{
-			while (src[i_s])
-			{
-				s_concat[i_s] = src[i_s];
-				i_s++;
-			}
-			s_concat[i_s++] = '/';
-
-			while (dest[idest])
-			{
-				s_concat[i_s] = dest[idest];
-				idest++;
-				i_s++;
-			}
-			s_concat[i_s] = '\0';
-			return (s_concat);
-		}
-	}
-	perror("_strcat - Unable to find dest and src.");
-	return (NULL);
-}
-
-/**
- * _strcmp - compare 2 strings.
- * @s1: first string
- * @s2: second string
- * Return: Success (0) if both strings contains the same characters.
- */
-
-int _strcmp(char *s1, char *s2)
-{
-	int i;
-
-	if (_strlen(s1) != _strlen(s2))
-		return (-1);
-	for (i = 0; s1[i] != '\0'; i++)
-	{
-		if (s1[i] != s2[i])
-			return (-1);
-	}
-	return (0);
-}
-
-/**
- * _strlen - Function to find the length of a string.
- *  @str: String to be counted.
- *  Return: Then length of the string whitout the las character '\0'.
- */
-
-int _strlen(char *str)
-{
-	int i;
-
-	if (str == NULL)
-		return (0);
-
-	for (i = 0; str[i] != '\0'; i++)
+	if (!s)
+		return (length);
+	for (length = 0; s[length]; length++)
 		;
-
-	return (i);
+	return (length);
 }
 
 /**
- * _strdup - create a copy of a string
- * @src: Contains the original string
- * Return: Gives back the copy of string
+ * _strcpy - Copies the string pointed to by src, including the
+ *           terminating null byte, to the buffer pointed by des.
+ * @dest: Pointer to the destination of copied string.
+ * @src: Pointer to the src of the source string.
+ *
+ * Return: Pointer to dest.
  */
-
-char *_strdup(char *src)
+char *_strcpy(char *dest, const char *src)
 {
-	int i;
-	int len;
-	char *dest;
-
-	len = _strlen(src);
-	dest = malloc(sizeof(char) * (len + 1));
+	size_t i;
 
 	for (i = 0; src[i] != '\0'; i++)
 		dest[i] = src[i];
@@ -105,19 +37,68 @@ char *_strdup(char *src)
 }
 
 /**
- * print_str - Prints a string character by character.
- * @str: String to be printed. If the string is NULL it will print (null)
- * @new_line: If integer is 0 a new line will be printed. Otherwise a new line
- * will not be printed.
+ * _strcat - Concantenates two strings.
+ * @dest: Pointer to destination string.
+ * @src: Pointer to source string.
+ *
+ * Return: Pointer to destination string.
  */
-void print_str(char *str, int new_line)
+char *_strcat(char *dest, const char *src)
 {
-	int i;
+	char *destTemp;
+	const char *srcTemp;
 
-	if (str == NULL)
-		str = "(null)";
-	for (i = 0; str[i] != '\0'; i++)
-		write(STDOUT_FILENO, &str[i], 1);
-	if (new_line == 0)
-		write(STDOUT_FILENO, "\n", 1);
+	destTemp = dest;
+	srcTemp =  src;
+
+	while (*destTemp != '\0')
+		destTemp++;
+
+	while (*srcTemp != '\0')
+		*destTemp++ = *srcTemp++;
+	*destTemp = '\0';
+	return (dest);
+}
+
+/**
+ * _strncat - Concantenates two strings where n number
+ *            of bytes are copied from source.
+ * @dest: Pointer to destination string.
+ * @src: Pointer to source string.
+ * @n: n bytes to copy from src.
+ *
+ * Return: Pointer to destination string.
+ */
+char *_strncat(char *dest, const char *src, size_t n)
+{
+	size_t dest_len = _strlen(dest);
+	size_t i;
+
+	for (i = 0; i < n && src[i] != '\0'; i++)
+		dest[dest_len + i] = src[i];
+	dest[dest_len + i] = '\0';
+
+	return (dest);
+}
+/**
+ * _strcmp - Compares two strings.
+ * @s1: The first string to be compared.
+ * @s2: The second string to be compared.
+ *
+ * Return: Positive byte difference if s1 > s2
+ *         0 if s1 = s2
+ *         Negative byte difference if s1 < s2
+ */
+int _strcmp(char *s1, char *s2)
+{
+	while (*s1 && *s2 && *s1 == *s2)
+	{
+		s1++;
+		s2++;
+	}
+
+	if (*s1 != *s2)
+		return (*s1 - *s2);
+
+	return (0);
 }

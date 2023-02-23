@@ -1,29 +1,100 @@
 #include"main.h"
 
 /**
- * tokenize_path - Separates a string representing paths as an array
- * of strings contining the path directories.
- * @index: Index of the path in the environment variables.
- * @str: string to separate and tokenize.
- * Return: Upon success a NULL terminated array of pointer to strings.
- * Otherwise returns NULL. Note!: Do not forget to free alocated
- * memory on receiving function or when possible.
+ * token_len - Locates the delimiter index marking the end
+ *             of the first token contained within a string.
+ * @str: The string to be searched.
+ * @delim: The delimiter character.
+ *
+ * Return: The delimiter index marking the end of
+ *         the intitial token pointed to be str.
  */
-
-char **tokenize_path(int index, char *str)
+int token_len(char *str, char *delim)
 {
-	char *env_var;
-	int token_count;
-	const char *delim = ":\n";
-	char **path_tokens;
-	int len;
+	int index = 0, len = 0;
 
-	len = _strlen(str);
-	token_count = 0;
-	env_var = environ[index] + (len + 1);
-	path_tokens = token_interface(env_var, delim, token_count);
-	if (path_tokens == NULL)
+	while (*(str + index) && *(str + index) != *delim)
+	{
+		len++;
+		index++;
+	}
+
+	return (len);
+}
+
+/**
+ * count_tokens - Counts the number of delimited
+ *                words contained within a string.
+ * @str: The string to be searched.
+ * @delim: The delimiter character.
+ *
+ * Return: The number of words contained within str.
+ */
+int count_tokens(char *str, char *delim)
+{
+	int index, tokens = 0, len = 0;
+
+	for (index = 0; *(str + index); index++)
+		len++;
+
+	for (index = 0; index < len; index++)
+	{
+		if (*(str + index) != *delim)
+		{
+			tokens++;
+			index += token_len(str + index, delim);
+		}
+	}
+
+	return (tokens);
+}
+
+/**
+ * _strtok - Tokenizes a string.
+ * @line: The string.
+ * @delim: The delimiter character to tokenize the string by.
+ *
+ * Return: A pointer to an array containing the tokenized words.
+ */
+char **_strtok(char *line, char *delim)
+{
+	char **ptr;
+	int index = 0, tokens, t, letters, l;
+
+	tokens = count_tokens(line, delim);
+	if (tokens == 0)
 		return (NULL);
 
-	return (path_tokens);
+	ptr = malloc(sizeof(char *) * (tokens + 2));
+	if (!ptr)
+		return (NULL);
+
+	for (t = 0; t < tokens; t++)
+	{
+		while (line[index] == *delim)
+			index++;
+
+		letters = token_len(line + index, delim);
+
+		ptr[t] = malloc(sizeof(char) * (letters + 1));
+		if (!ptr[t])
+		{
+			for (index -= 1; index >= 0; index--)
+				free(ptr[index]);
+			free(ptr);
+			return (NULL);
+		}
+
+		for (l = 0; l < letters; l++)
+		{
+			ptr[t][l] = line[index];
+			index++;
+		}
+
+		ptr[t][l] = '\0';
+	}
+	ptr[t] = NULL;
+	ptr[t + 1] = NULL;
+
+	return (ptr);
 }

@@ -1,105 +1,174 @@
 #include"main.h"
 
 /**
- * ourshell_exit - Exits the shell. After freeing allocated resources.
- * @command: A string representing the input from the user.
+ * exit_b - Causes normal process termination
+ *                for the shellby shell.
+ * @args: An array of arguments containing the exit value.
+ * @string: A double pointer to the beginning of args.
+ *
+ * Return: If there are no arguments - -3.
+ *         If the given exit value is invalid - 2.
+ *         O/w - exits with the given status value.
+ *
+ * Description: Upon returning -3, the program exits back in the main function.
  */
-void ourshell_exit(char *command)
+
+int exit_b(char **args, char **string)
 {
-	free(command);
-	exit(1);
-}
+	int i, len_of_int = 10;
+	unsigned int num = 0, max = 1 << (sizeof(int) * 8 - 1);
 
-/**
- * ourshell_env - Prints all the environmental variables in the current shell.
- * @command: A string representing the input from the user.
- */
-void ourshell_env(__attribute__((unused))char *command)
-{
-	int i;
-	int j;
-
-	for (i = 0; environ[i] != NULL; i++)
+	if (args[0])
 	{
-		for (j = 0; environ[i][j] != '\0'; j++)
-			write(STDOUT_FILENO, &environ[i][j], 1);
-		write(STDOUT_FILENO, "\n", 1);
-	}
-}
-
-/**
- * ourshell_cd - Changes the current working directory.
- * if no parameter is passed it will change directory to HOME.
- * @command: A string representing the input from the user.
- */
-void ourshell_cd(char *command)
-{
-	int index;
-	int token_count;
-	char **aop;
-	const char *delim = "\n\t ";
-
-	token_count = 0;
-	aop = token_interface(command, delim, token_count);
-	if (aop[0] == NULL)
-	{
-		single_free(2, aop, command);
-		return;
-	}
-	if (aop[1] == NULL)
-	{
-		index = find_path("HOME");
-		chdir((environ[index]) + 5);
-	}
-	else if (_strcmp(aop[1], "-") == 0)
-		print_str(aop[1], 0);
-
-	else
-		chdir(aop[1]);
-	double_free(aop);
-}
-
-/**
- * get_builtins - Finds the right function needed for execution.
- * @str: The name of the function that is needed.
- * Return: Upon sucess a pointer to a void function. Otherwise NULL.
- */
-void (*get_builtins(char *str))(char *str)
-{
-	int i;
-
-	builtin_t buildin[] = {
-		{"exit", ourshell_exit},
-		{"env", ourshell_env},
-		{"cd", ourshell_cd},
-		{NULL, NULL}
-	};
-
-	for (i = 0; buildin[i].built != NULL; i++)
-	{
-		if (_strcmp(str, buildin[i].built) == 0)
+		if (args[0][0] == '+')
 		{
-			return (buildin[i].f);
+			i = 1;
+			len_of_int++;
+		}
+		for (; args[0][i]; i++)
+		{
+			if (i <= len_of_int && args[0][i] >= '0' && args[0][i] <= '9')
+				num = (num * 10) + (args[0][i] - '0');
+			else
+				return (create_error(--args, 2));
 		}
 	}
-	return (NULL);
+	else
+	{
+		return (-3);
+	}
+	if (num > max - 1)
+		return (create_error(--args, 2));
+	args -= 1;
+	free_args(args, string);
+	free_env();
+	free_alias_list(aliases);
+	exit(num);
+}
+/**
+ * env_b - Prints the current environment.
+ * @args: An array of arguments passed to the shell.
+ * @string: A double pointer to the beginning of args.
+ *
+ * Return: If an error occurs - -1.
+ *	   Otherwise - 0.
+ *
+ * Description: Prints one variable per line in the
+ *              format 'variable'='value'.
+ */
+int env_b(char **args, char __attribute__((__unused__)) **string)
+{
+	int index;
+	char nc = '\n';
+
+	if (!environ)
+		return (-1);
+
+	for (index = 0; environ[index]; index++)
+	{
+		write(STDOUT_FILENO, environ[index], _strlen(environ[index]));
+		write(STDOUT_FILENO, &nc, 1);
+	}
+
+	(void)args;
+	return (0);
 }
 
 /**
- * built_in - Checks for builtin functions.
- * @string: An array of all the arguments passed to the shell.
- * @command: A string representing the input from the user.
- * Return: If function is found 0. Otherwise -1.
+ * setenv_b - Changes or adds an environmental variable to the PATH.
+ * @args: An array of arguments passed to the shell.
+ * @string: A double pointer to the beginning of args.
+ * Description: args[1] is the name of the new or existing PATH variable.
+ *              args[2] is the value to set the new or changed variable to.
+ *
+ * Return: If an error occurs - -1.
+ *         Otherwise - 0.
  */
-int built_in(char **string, char *command)
+int setenv_b(char **args, char __attribute__((__unused__)) **string)
 {
-	void (*build)(char *);
+	char **env_var = NULL, **new_environ, *new_value;
+	size_t size;
+	int index;
 
-	build = get_builtins(string[0]);
-	if (build == NULL)
-		return (-1);
-	if (_strcmp("exit", string[0]) == 0)
-		double_free(string);
-	build(command);
+	if (!args[0] || !args[1])
+		return (create_error(args, -1));
+
+	new_value = malloc(_strlen(args[0]) + 1 + _strlen(args[1]) + 1);
+	if (!new_value)
+		return (create_error(args, -1));
+	_strcpy(new_value, args[0]);
+	_strcat(new_value, "=");
+	_strcat(new_value, args[1]);
+
+	env_var = _getenv(args[0]);
+	if (env_var)
+	{
+		free(*env_var);
+		*env_var = new_value;
+		return (0);
+	}
+	for (size = 0; environ[size]; size++)
+		;
+
+	new_environ = malloc(sizeof(char *) * (size + 2));
+	if (!new_environ)
+	{
+		free(new_value);
+		return (create_error(args, -1));
+	}
+
+	for (index = 0; environ[index]; index++)
+		new_environ[index] = environ[index];
+
+	free(environ);
+	environ = new_environ;
+	environ[index] = new_value;
+	environ[index + 1] = NULL;
+
+	return (0);
+}
+
+/**
+ * unsetenv_b - Deletes an environmental variable from the PATH.
+ * @args: An array of arguments passed to the shell.
+ * @string: A double pointer to the beginning of args.
+ * Description: args[1] is the PATH variable to remove.
+ *
+ * Return: If an error occurs - -1.
+ *         Otherwise - 0.
+ */
+int unsetenv_b(char **args, char __attribute__((__unused__)) **string)
+{
+	char **env_var, **new_environ;
+	size_t size;
+	int index, index2;
+
+	if (!args[0])
+		return (create_error(args, -1));
+	env_var = _getenv(args[0]);
+	if (!env_var)
+		return (0);
+
+	for (size = 0; environ[size]; size++)
+		;
+
+	new_environ = malloc(sizeof(char *) * size);
+	if (!new_environ)
+		return (create_error(args, -1));
+
+	for (index = 0, index2 = 0; environ[index]; index++)
+	{
+		if (*env_var == environ[index])
+		{
+			free(*env_var);
+			continue;
+		}
+		new_environ[index2] = environ[index];
+		index2++;
+	}
+	free(environ);
+	environ = new_environ;
+	environ[size - 1] = NULL;
+
 	return (0);
 }

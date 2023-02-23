@@ -1,174 +1,203 @@
 #include"main.h"
 
 /**
- * parse_line - Parses the command line looking for commands and argumements.
- * This function it is also in charged of freeing memory that is not longer
- * needed by the program.
- * @command: A pointer to a string. Will always be NULL upon function entry.
- * @size: A holder for numbers of size_t. Will always be initilized to 0.
- * @command_counter: A counter keeping track of how many commands have been
- * entered into the shell.
- * @argv: commands parsed to the program
+ * get_args - Gets a command from standard input.
+ * @line: A buffer to store the command.
+ * @exe_ret: The return value of the last executed command.
+ *
+ * Return: If an error occurs - NULL.
+ *         Otherwise - a pointer to the stored command.
  */
-
-void parse_line(char *command, size_t size, int command_counter, char **argv)
+char *get_args(char *line, int *exe_ret)
 {
-	int i;
-	ssize_t read_len;
-	int token_count;
-	char **aop;
-	const char *delim = "\n\t ";
+	size_t n = 0;
+	ssize_t read;
+	char *prompt = "$ ";
 
-	token_count = 0;
-	read_len = getline(&command, &size, stdin);
-	if (read_len != -1)
+	if (line)
+		free(line);
+
+	read = _getline(&line, &n, STDIN_FILENO);
+	if (read == -1)
+		return (NULL);
+	if (read == 1)
 	{
-		aop = token_interface(command, delim, token_count);
-		if (aop[0] == NULL)
-		{
-			single_free(2, aop, command);
-			return;
-		}
-		i = built_in(aop, command);
-		if (i == -1)
-			create_child(aop, command, command_counter, argv);
-		for (i = 0; aop[i] != NULL; i++)
-			free(aop[i]);
-		single_free(2, aop, command);
+		hist++;
+		if (isatty(STDIN_FILENO))
+			write(STDOUT_FILENO, prompt, 2);
+		return (get_args(line, exe_ret));
 	}
-	else
-		ourshell_exit(command);
+
+	line[read - 1] = '\0';
+	variable_replacement(&line, exe_ret);
+	handle_line(&line, read);
+
+	return (line);
 }
 
 /**
- * create_child - Creates a child in order to execute another program.
- * @aop: An array of parameters
- * of a program and its parameters. This array is NULL terminated.
- * @command: The contents of the read line.
- * @count: A counter keeping track of how many commands have been entered
- * into the shell.
- * @argv: arguments parsed to the program
+ * call_args - Partitions operators from commands and calls them.
+ * @args: An array of arguments.
+ * @string: A double pointer to the beginning of args.
+ * @exe_ret: The return value of the parent process' last executed command.
+ *
+ * Return: The return value of the last executed command.
  */
-void create_child(char **aop, char *command, int count, char **argv)
+int call_args(char **args, char **string, int *exe_ret)
 {
-	pid_t id;
-	int status;
-	int i;
-	int check;
-	struct stat buf;
-	char *tmp_string;
-	char *string;
+	int ret, index;
 
-	id = fork();
-	if (id == 0)
+	if (!args[0])
+		return (*exe_ret);
+	for (index = 0; args[index]; index++)
 	{
-		tmp_string = aop[0];
-		string = path_finder(aop[0]);
-		if (string == NULL)
+		if (_strncmp(args[index], "||", 2) == 0)
 		{
-			check = stat(tmp_string, &buf);
-			if (check == -1)
+			free(args[index]);
+			args[index] = NULL;
+			args = replace_aliases(args);
+			ret = run_args(args, string, exe_ret);
+			if (*exe_ret != 0)
 			{
-				error_printing(argv[0], count, tmp_string);
-				print_str(": not found", 0);
-				single_free(2, command, tmp_string);
-				for (i = 1; aop[i]; i++)
-					free(aop[i]);
-				free(aop);
-				exit(100);
+				args = &args[++index];
+				index = 0;
 			}
-			string = tmp_string;
+			else
+			{
+				for (index++; args[index]; index++)
+					free(args[index]);
+				return (ret);
+			}
 		}
-		aop[0] = string;
-		if (aop[0] != NULL)
+		else if (_strncmp(args[index], "&&", 2) == 0)
 		{
-			if (execve(aop[0], aop, environ) == -1)
-				exec_error(argv[0], count, tmp_string);
+			free(args[index]);
+			args[index] = NULL;
+			args = replace_aliases(args);
+			ret = run_args(args, string, exe_ret);
+			if (*exe_ret == 0)
+			{
+				args = &args[++index];
+				index = 0;
+			}
+			else
+			{
+				for (index++; args[index]; index++)
+					free(args[index]);
+				return (ret);
+			}
 		}
+	}
+	args = replace_aliases(args);
+	ret = run_args(args, string, exe_ret);
+	return (ret);
+}
+
+/**
+ * run_args - Calls the execution of a command.
+ * @args: An array of arguments.
+ * @string: A double pointer to the beginning of args.
+ * @exe_ret: The return value of the parent process' last executed command.
+ *
+ * Return: The return value of the last executed command.
+ */
+int run_args(char **args, char **string, int *exe_ret)
+{
+	int ret, i;
+	int (*builtin)(char **args, char **string);
+
+	builtin = get_builtin(args[0]);
+
+	if (builtin)
+	{
+		ret = builtin(args + 1, string);
+		if (ret != EXIT)
+			*exe_ret = ret;
 	}
 	else
-		wait(&status);
+	{
+		*exe_ret = execute(args, string);
+		ret = *exe_ret;
+	}
+
+	hist++;
+
+	for (i = 0; args[i]; i++)
+		free(args[i]);
+
+	return (ret);
 }
 
 /**
- * token_interface - Meant to interact with other token functions, and make
- * them more accessible to other parts of the program.
- * @command: A string containing the raw user input.
- * @delim: A constant string containing the desired delimeter to tokenize line.
- * @token_count: A holder for the amount of tokens in a string.
- * Return: Upon success an array of tokens representing the command. Otherwise
- * returns NULL.
+ * handle_args - Gets, calls, and runs the execution of a command.
+ * @exe_ret: The return value of the parent process' last executed command.
+ *
+ * Return: If an end-of-file is read - END_OF_FILE (-2).
+ *         If the input cannot be tokenized - -1.
+ *         O/w - The exit value of the last executed command.
  */
-
-char **token_interface(char *command, const char *delim, int token_count)
+int handle_args(int *exe_ret)
 {
-	char **aop;
+	int ret = 0, index;
+	char **args, *line = NULL, **string;
 
-	token_count = count_token(command, delim);
-	if (token_count == -1)
-	{
-		free(command);
-		return (NULL);
-	}
-	aop = tokenize(token_count, command, delim);
-	if (aop == NULL)
-	{
-		free(command);
-		return (NULL);
-	}
+	line = get_args(line, exe_ret);
+	if (!line)
+		return (END_OF_FILE);
 
-	return (aop);
+	args = _strtok(line, " ");
+	free(line);
+	if (!args)
+		return (ret);
+	if (check_args(args) != 0)
+	{
+		*exe_ret = 2;
+		free_args(args, args);
+		return (*exe_ret);
+	}
+	string = args;
+
+	for (index = 0; args[index]; index++)
+	{
+		if (_strncmp(args[index], ";", 1) == 0)
+		{
+			free(args[index]);
+			args[index] = NULL;
+			ret = call_args(args, string, exe_ret);
+			args = &args[++index];
+			index = 0;
+		}
+	}
+	if (args)
+		ret = call_args(args, string, exe_ret);
+
+	free(string);
+	return (ret);
 }
 
 /**
- * tokenize - Separates a string into an array of tokens. DON'T FORGET TO FREE
- * on receiving function when using tokenize.
- * @command: A string containing the raw user input.
- * @delim: A constant string containing the desired delimeter to tokenize line
- * @token_count: An integer representing the amount of tokens in the array.
- * Return: Upon success a NULL terminated array of pointer to strings.
- * Otherwise returns NULL.
+ * check_args - Checks if there are any leading ';', ';;', '&&', or '||'.
+ * @args: 2D pointer to tokenized commands and arguments.
+ *
+ * Return: If a ';', '&&', or '||' is placed at an invalid position - 2.
+ *	   Otherwise - 0.
  */
-char **tokenize(int token_count, char *command, const char *delim)
+int check_args(char **args)
 {
-	int i;
-	char **buffer;
-	char *token;
-	char *command_cp;
+	size_t i;
+	char *cur, *nex;
 
-	command_cp = _strdup(command);
-	buffer = malloc(sizeof(char *) * (token_count + 1));
-	if (buffer == NULL)
-		return (NULL);
-	token = strtok(command_cp, delim);
-	for (i = 0; token != NULL; i++)
+	for (i = 0; args[i]; i++)
 	{
-		buffer[i] = _strdup(token);
-		token = strtok(NULL, delim);
+		cur = args[i];
+		if (cur[0] == ';' || cur[0] == '&' || cur[0] == '|')
+		{
+			if (i == 0 || cur[1] == ';')
+				return (create_error(&args[i], 2));
+			nex = args[i + 1];
+			if (nex && (nex[0] == ';' || nex[0] == '&' || nex[0] == '|'))
+				return (create_error(&args[i + 1], 2));
+		}
 	}
-	buffer[i] = NULL;
-	free(command_cp);
-	return (buffer);
-}
-
-/**
- * count_token - Counts tokens in the passed string.
- * @command: String that is separated by an specified delimeter
- * @delim: The desired delimeter to separate tokens.
- * Return: Upon success the total count of the tokens. Otherwise -1.
- */
-int count_token(char *command, const char *delim)
-{
-	char *str;
-	char *token;
-	int i;
-
-	str = _strdup(command);
-	if (str == NULL)
-		return (-1);
-	token = strtok(str, delim);
-	for (i = 0; token != NULL; i++)
-		token = strtok(NULL, delim);
-	free(str);
-	return (i);
+	return (0);
 }

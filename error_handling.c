@@ -1,72 +1,180 @@
 #include"main.h"
 
 /**
- * error_printing - Prints a message error when a comand is not found.
- * @count: A counter keeping track of the number of commands run on the shell.
- * @argv: arguments parsed to the program.
- * @string: The specific command not being found.
+ * num_len - Counts the digit length of a number.
+ * @num: The number to measure.
+ *
+ * Return: The digit length.
  */
 
-void error_printing(char *argv, int count, char *string)
+int num_len(int num)
 {
-	print_str(argv, 1);
-	print_str(": ", 1);
-	print_number(count);
-	print_str(": ", 1);
-	print_str(string, 1);
-}
+	unsigned int num1;
+	int len = 1;
 
-/**
- * exec_error - Prints exec errors.
- * @argv: The name of the program running the shell.
- * @count: Keeps track of how many commands have been entered.
- * @tmp_string: The command that filed.
- */
-
-void exec_error(char *argv, int count, char *tmp_string)
-{
-	error_printing(argv, count, tmp_string);
-	print_str(": ", 1);
-	perror("");
-	exit(1);
-}
-
-/**
- * print_number - Prints an unsigned number
- * @n: unsigned integer to be printed
- * Return: The amount of numbers printed
- */
-int print_number(int n)
-{
-	int div;
-	int len;
-	unsigned int num;
-
-	div = 1;
-	len = 0;
-
-	num = n;
-
-	for (; num / div > 9; )
-		div *= 10;
-
-	for (; div != 0; )
+	if (num < 0)
 	{
-		len += _write_char('0' + num / div);
-		num %= div;
-		div /= 10;
+		len++;
+		num1 = num * -1;
+	}
+	else
+	{
+		num1 = num;
+	}
+	while (num1 > 9)
+	{
+		len++;
+		num1 /= 10;
 	}
 
 	return (len);
 }
 
 /**
- * _write_char - Writes a character to stdout
- * @c: Character that will be written to stdout
- * Return: Upon success how many characters were written.
+ * _itoa - Converts an integer to a string.
+ * @num: The integer.
+ *
+ * Return: The converted string.
  */
 
-int _write_char(char c)
+char *_itoa(int num)
 {
-	return (write(1, &c, 1));
+	char *buffer;
+	int len = num_len(num);
+	unsigned int num1;
+
+	buffer = malloc(sizeof(char) * (len + 1));
+	if (!buffer)
+		return (NULL);
+
+	buffer[len] = '\0';
+
+	if (num < 0)
+	{
+		num1 = num * -1;
+		buffer[0] = '-';
+	}
+	else
+	{
+		num1 = num;
+	}
+
+	len--;
+	do {
+		buffer[len] = (num1 % 10) + '0';
+		num1 /= 10;
+		len--;
+	} while (num1 > 0);
+
+	return (buffer);
+}
+
+
+/**
+ * create_error - Writes a custom error message to stderr.
+ * @args: An array of arguments.
+ * @err: The error value.
+ *
+ * Return: The error value.
+ */
+int create_error(char **args, int err)
+{
+	char *error;
+
+	switch (err)
+	{
+	case -1:
+		error = error_env(args);
+		break;
+	case 1:
+		error = error_1(args);
+		break;
+	case 2:
+		if (*(args[0]) == 'e')
+			error = error_2_exit(++args);
+		else if (args[0][0] == ';' || args[0][0] == '&' || args[0][0] == '|')
+			error = error_2_syntax(args);
+		else
+			error = error_2_cd(args);
+		break;
+	case 126:
+		error = error_126(args);
+		break;
+	case 127:
+		error = error_127(args);
+		break;
+	}
+	write(STDERR_FILENO, error, _strlen(error));
+
+	if (error)
+		free(error);
+	return (err);
+
+}
+/**
+ * error_126 - Creates an error message for permission denied failures.
+ * @args: An array of arguments passed to the command.
+ *
+ * Return: The error string.
+ */
+char *error_126(char **args)
+{
+	char *error, *hist_str;
+	int len;
+
+	hist_str = _itoa(hist);
+	if (!hist_str)
+		return (NULL);
+
+	len = _strlen(name) + _strlen(hist_str) + _strlen(args[0]) + 24;
+	error = malloc(sizeof(char) * (len + 1));
+	if (!error)
+	{
+		free(hist_str);
+		return (NULL);
+	}
+
+	_strcpy(error, name);
+	_strcat(error, ": ");
+	_strcat(error, hist_str);
+	_strcat(error, ": ");
+	_strcat(error, args[0]);
+	_strcat(error, ": Permission denied\n");
+
+	free(hist_str);
+	return (error);
+}
+
+/**
+ * error_127 - Creates an error message for command not found failures.
+ * @args: An array of arguments passed to the command.
+ *
+ * Return: The error string.
+ */
+char *error_127(char **args)
+{
+	char *error, *hist_str;
+	int len;
+
+	hist_str = _itoa(hist);
+	if (!hist_str)
+		return (NULL);
+
+	len = _strlen(name) + _strlen(hist_str) + _strlen(args[0]) + 16;
+	error = malloc(sizeof(char) * (len + 1));
+	if (!error)
+	{
+		free(hist_str);
+		return (NULL);
+	}
+
+	_strcpy(error, name);
+	_strcat(error, ": ");
+	_strcat(error, hist_str);
+	_strcat(error, ": ");
+	_strcat(error, args[0]);
+	_strcat(error, ": not found\n");
+
+	free(hist_str);
+	return (error);
 }
