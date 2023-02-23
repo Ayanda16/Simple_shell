@@ -7,7 +7,6 @@
 void ourshell_exit(char *command)
 {
 	free(command);
-	print_str("\n", 1);
 	exit(1);
 }
 

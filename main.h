@@ -14,7 +14,7 @@
 #include<signal.h>
 #include<stddef.h>
 
-#define PROMPT "$ "
+#define PROMPT "\n$ "
 
 /**
  * struct builtin_d - Defines the builtins functions.

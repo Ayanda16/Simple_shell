@@ -20,7 +20,7 @@ void parse_line(char *command, size_t size, int command_counter, char **argv)
 	const char *delim = "\n\t ";
 
 	token_count = 0;
-	write(STDOUT_FILENO, PROMPT, _strlen(PROMPT));
+	write(STDIN_FILENO, PROMPT, _strlen(PROMPT));
 	read_len = getline(&command, &size, stdin);
 	if (read_len != -1)
 	{
