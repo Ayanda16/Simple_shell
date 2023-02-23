@@ -14,8 +14,6 @@
 #include<signal.h>
 #include<stddef.h>
 
-#define PROMPT "\n$ "
-
 /**
  * struct builtin_d - Defines the builtins functions.
  * @built: The name of the build in command.
@@ -32,6 +30,7 @@ typedef struct builtin_d
 extern char **environ;
 
 /* functions */
+void sig_handler(int sig);
 char **token_interface(char *command, const char *delim, int token_count);
 int count_token(char *command, const char *delim);
 char **tokenize(int token_count, char *command, const char *delim);
